@@ -5,7 +5,7 @@ package Thread::Queue::Monitored;
 # Make sure we do everything by the book from now on
 
 @ISA = qw(Thread::Queue);
-$VERSION = '0.01';
+$VERSION = '0.02';
 use strict;
 
 # Make sure we have queues
@@ -18,7 +18,7 @@ use Thread::Queue (); # no need to pollute namespace
 
 #---------------------------------------------------------------------------
 #  IN: 1 class to bless with
-#      2 reference/name of subroutine doing the Monitoreding
+#      2 reference/name of subroutine doing the monitoring
 #      3 value to consider end of monitoring action (default: undef)
 # OUT: 1 instantiated object
 #      2 (optional) thread object of monitoring thread
@@ -40,11 +40,14 @@ sub new {
     }
 
 # Obtain a standard queue object
+# Allow for the automatic monitor routine selection
 # Create a thread monitoring the queue
 # Return the queue objects or both objects
 
     my $self = $class->SUPER::new;
-    my $thread = threads->new( \&_monitor,$self,wantarray,$code,$exit );
+    no strict 'refs';
+    my $thread =
+     threads->new( \&{$class.'::_monitor'},$self,wantarray,$code,$exit );
     return wantarray ? ($self,$thread) : $self;
 } #new
 
@@ -111,7 +114,7 @@ __END__
 
 =head1 NAME
 
-Thread::Queue::Monitored - monitor a queue for content
+Thread::Queue::Monitored - monitor a queue for specific content
 
 =head1 SYNOPSIS
 
@@ -149,13 +152,9 @@ only output warnings if a certain value is encountered.  Or whatever.
 
 The action performed in the thread, is determined by a name or reference
 to a subroutine.  This subroutine is called for every value obtained from
-the queue.  It should return a true value to indicate that monitoring
-should continue, and a false value to indicate that monitoring should
-stop.
+the queue.
 
-Any number of threads can safely add elements to the end of the list, or
-remove elements from the head of the list. (Queues don't permit adding or
-removing elements from the middle of the list).
+Any number of threads can safely add elements to the end of the list.
 
 =head1 CLASS METHODS
 
@@ -169,8 +168,9 @@ removing elements from the middle of the list).
 The C<new> function creates a new empty queue.  It returns the instantiated
 Thread::Queue::Monitored object in scalar context: in that case, the monitoring
 thread will be detached and will continue until the exit value is passed on
-to the queue.  Also returns the thread object in list context, which can be
-used to wait for the thread to be really finished using the C<join()> method.
+to the queue.  In list context, the thread object is also returned, which can
+be used to wait for the thread to be really finished using the C<join()>
+method.
 
 The first input parameter is a name or reference to a subroutine that will
 be called to check on each value that is added to the queue.  It B<must> be

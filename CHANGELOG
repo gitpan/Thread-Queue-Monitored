@@ -1,2 +1,9 @@
+0.02	17 July 2002
+	Added support for Thread::Queue::Any::Monitored by making the
+	monitoring routine dependent on the class for which it is being
+	blessed.
+
+	Fixed some documentation nits.
+
 0.01	17 July 2002
 	First version of Thread::Queue::Monitored.
