@@ -6,10 +6,19 @@ BEGIN {				# Magic Perl CORE pragma
 }
 
 use strict;
-use Test::More tests => 2+(2*4);
+use Test::More tests => 3+(2*4);
 
 BEGIN { use_ok('threads') }
 BEGIN { use_ok('Thread::Queue::Monitored') }
+
+can_ok( 'Thread::Queue::Monitored',qw(
+ dequeue
+ dequeue_dontwait
+ dequeue_nb
+ enqueue
+ new
+ self
+) );
 
 my @list : shared;
 my $times = 1000;

@@ -1,3 +1,9 @@
+0.05	21 July 2002
+	Added "can_ok" test to test-suite.
+
+	Renamed dummy "dequeue_nb" to "dequeue_dontwait" to be more in line
+	with Thread::Pool.  Added synonym "dequeue_nb" for compatibility.
+
 0.04	18 July 2002
 	Added support for "post" routine, so that a routine will be executed
 	when monitoring stops.  Results of the "post" routine are available

@@ -5,12 +5,16 @@ package Thread::Queue::Monitored;
 # Make sure we do everything by the book from now on
 
 @ISA = qw(Thread::Queue);
-$VERSION = '0.04';
+$VERSION = '0.05';
 use strict;
 
 # Make sure we have queues
 
 use Thread::Queue (); # no need to pollute namespace
+
+# Allow for synonym for dequeue_dontwait
+
+*dequeue_nb = \&dequeue_dontwait;
 
 # Allow for self referencing within monitoring thread
 
@@ -94,7 +98,7 @@ sub dequeue { die "You cannot dequeue on a monitored queue" }
 #  IN: 1 instantiated object (ignored)
 # OUT: 1 dequeued value (not returned)
 
-sub dequeue_nb { die "You cannot dequeue_nb on a monitored queue" }
+sub dequeue_dontwait { die "You cannot dequeue_dontwait on a monitored queue" }
 
 #---------------------------------------------------------------------------
 
