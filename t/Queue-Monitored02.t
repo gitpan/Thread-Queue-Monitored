@@ -6,6 +6,7 @@ BEGIN {				# Magic Perl CORE pragma
 }
 
 use strict;
+use warnings;
 use Test::More tests => 8;
 
 BEGIN { use_ok('threads') }
@@ -33,7 +34,7 @@ isa_ok( $t, 'threads',		'check thread object type' );
 
 $q->enqueue( $_ ) foreach 1..$times;
 my $pending = $q->pending;
-ok( $pending >= 0 and $pending <= $times, 'check number of values on queue' );
+ok( ($pending >= 0 and $pending <= $times), 'check number of values on queue' );
 
 $q->enqueue( undef ); # stop monitoring
 is( $t->join,'done',			'check result of join()' );

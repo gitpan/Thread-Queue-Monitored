@@ -4,9 +4,8 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile (
  NAME		=> "Thread::Queue::Monitored",
- ($[ >= 5.005) ?
- (AUTHOR	=> 'Elizabeth Mattijsen (liz@dijkmat.nl)',
-  ABSTRACT	=> 'monitor a queue for specific content') : (),
+ AUTHOR		=> 'Elizabeth Mattijsen (liz@dijkmat.nl)',
+ ABSTRACT	=> 'monitor a queue for specific content',
  VERSION_FROM	=> 'lib/Thread/Queue/Monitored.pm',
  PREREQ_PM	=> {
                     'Thread::Queue' => 0,
