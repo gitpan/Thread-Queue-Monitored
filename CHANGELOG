@@ -1,3 +1,12 @@
+0.06	24 July 2002
+	Made the dequeue_xxx methods die centrally.
+
+	Made $VERSION and @ISA have the : unique attribute to save memory.
+
+	23 July 2002
+	Fixed problem with warnings if an undefined exit value was used
+	(the default).
+
 0.05	21 July 2002
 	Added "can_ok" test to test-suite.
 

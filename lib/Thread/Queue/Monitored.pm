@@ -1,20 +1,16 @@
 package Thread::Queue::Monitored;
 
-# Make sure we inherit from threads::shared::queue
+# Make sure we inherit from Thread::Queue
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-@ISA = qw(Thread::Queue);
-$VERSION = '0.05';
+our @ISA : unique = qw(Thread::Queue);
+our $VERSION : unique = '0.06';
 use strict;
 
 # Make sure we have queues
 
 use Thread::Queue (); # no need to pollute namespace
-
-# Allow for synonym for dequeue_dontwait
-
-*dequeue_nb = \&dequeue_dontwait;
 
 # Allow for self referencing within monitoring thread
 
@@ -92,17 +88,41 @@ sub self { $SELF } #self
 #  IN: 1 instantiated object (ignored)
 # OUT: 1 dequeued value (not returned)
 
-sub dequeue { die "You cannot dequeue on a monitored queue" }
+sub dequeue { _die() }
 
 #---------------------------------------------------------------------------
 #  IN: 1 instantiated object (ignored)
 # OUT: 1 dequeued value (not returned)
 
-sub dequeue_dontwait { die "You cannot dequeue_dontwait on a monitored queue" }
+sub dequeue_dontwait { _die() }
+
+#---------------------------------------------------------------------------
+#  IN: 1 instantiated object (ignored)
+# OUT: 1 dequeued value (not returned)
+
+sub dequeue_nb { _die() }
+
+#---------------------------------------------------------------------------
+#  IN: 1 instantiated object (ignored)
+# OUT: 1 dequeued value (not returned)
+
+sub dequeue_keep { _die() }
 
 #---------------------------------------------------------------------------
 
 # Internal subroutines
+
+#---------------------------------------------------------------------------
+#  IN: 1 instantiated object (ignored)
+
+sub _die {
+
+# Obtain the name of the caller
+# Die with the name of the caller
+
+    (my $caller = (caller(1))[3]) =~ s#^.*::##;
+    die "You cannot '$caller' on a monitored queue";
+} #_die
 
 #---------------------------------------------------------------------------
 #  IN: 1 namespace prefix
@@ -165,11 +185,18 @@ sub _monitor {
         }
 
 #  For all of the values just obtained
-#   Return result of post now if so indicated
+#   If there is a defined exit value
+#    Return now with result of post() if so indicated
+#   Elsif found value is not defined (so same as exit value)
+#    Return now with result of post()
 #   Call the monitoring routine
 	
         foreach (@value) {
-	    return $post->( @_ ) if $_ eq $exit;
+            if (defined( $exit )) {
+                return $post->( @_ ) if $_ eq $exit;
+            } elsif(!defined( $_ )) {
+                return $post->( @_ );
+            }
             $monitor->( $_ );
         }
     }
