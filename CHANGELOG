@@ -1,3 +1,8 @@
+0.04	18 July 2002
+	Added support for "post" routine, so that a routine will be executed
+	when monitoring stops.  Results of the "post" routine are available
+	with the "join" method on the thread object.
+
 0.03	17 July 2002
 	My my, third version on the same day!
 

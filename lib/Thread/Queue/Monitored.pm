@@ -5,7 +5,7 @@ package Thread::Queue::Monitored;
 # Make sure we do everything by the book from now on
 
 @ISA = qw(Thread::Queue);
-$VERSION = '0.03';
+$VERSION = '0.04';
 use strict;
 
 # Make sure we have queues
@@ -33,19 +33,27 @@ sub new {
 # Obtain the parameter hash reference
 # Obtain local copy of code to execute
 # Die now if nothing specified
-# If we don't have a code reference yet, make it one
 
     my $class = shift;
     my $param = shift;
     my $monitor = $param->{'monitor'};
     die "Must specify a subroutine to monitor the queue" unless $monitor;
-    $monitor = _makecoderef( caller().'::',$monitor ) unless ref($monitor);
+
+# Create the namespace
+# If we don't have a code reference yet, make it one
+
+    my $namespace = caller().'::';
+    $monitor = _makecoderef( $namespace,$monitor ) unless ref($monitor);
 
 # Obtain local copy of the pre subroutine reference
 # If we have one but it isn't a code reference yet, make it one
+# Obtain local copy of the post subroutine reference
+# If we have one but it isn't a code reference yet, make it one
 
     my $pre = $param->{'pre'};
-    $pre = _makecoderef( caller().'::',$pre ) if $pre and !ref($pre);
+    $pre = _makecoderef( $namespace,$pre ) if $pre and !ref($pre);
+    my $post = $param->{'post'};
+    $post = _makecoderef( $namespace,$post ) if $post and !ref($post);
 
 # Obtain a standard queue object, either reblessed from the hash or new
 
@@ -63,6 +71,7 @@ sub new {
      wantarray,
      $monitor,
      $param->{'exit'},	# don't care if not available: then undef = exit value
+     $post,
      $pre,
      @_
     );
@@ -127,9 +136,11 @@ sub _monitor {
     my $monitor = shift;
     my $exit = shift;
 
+# Obtain the post subroutine reference or create an empty one
 # Obtain the preparation subroutine reference
 # Execute the preparation routine if there is one
 
+    my $post = shift || sub {};
     my $pre = shift;
     $pre->( @_ ) if $pre;
 
@@ -150,11 +161,11 @@ sub _monitor {
         }
 
 #  For all of the values just obtained
-#   Return now if so indicated
+#   Return result of post now if so indicated
 #   Call the monitoring routine
 	
         foreach (@value) {
-	    return if $_ eq $exit;
+	    return $post->( @_ ) if $_ eq $exit;
             $monitor->( $_ );
         }
     }
@@ -175,6 +186,7 @@ Thread::Queue::Monitored - monitor a queue for specific content
      {
       monitor => sub { print "monitoring value $_[0]\n" }, # is a must
       pre => sub { print "prepare monitoring\n" },         # optional
+      post => sub { print "stop monitoring\n" },           # optional
       queue => $queue, # use existing queue, create new if not specified
       exit => 'exit',  # default to undef
      }
@@ -183,9 +195,9 @@ Thread::Queue::Monitored - monitor a queue for specific content
     $q->enqueue( "foo" );
     $q->enqueue( undef ); # exit value by default
 
-    $t->join; # optional, wait for monitor thread to end
+    @post = $t->join; # optional, wait for monitor thread to end
 
-    $queue = Thread::Queue::Monitored->self; # in "pre" and "do" only
+    $queue = Thread::Queue::Monitored->self; # "pre", "do", "post" only
 
 =head1 DESCRIPTION
 
@@ -221,6 +233,7 @@ Any number of threads can safely add elements to the end of the list.
   {
    pre => \&pre,
    monitor => 'monitor',
+   post => 'module::done',
    queue => $queue, # use existing queue, create new if not specified
    exit => 'exit',  # default to undef
   }
@@ -300,6 +313,33 @@ The specified subroutine should expect the following parameters to be passed:
 
  1..N  any parameters that were passed with the call to L<new>.
 
+=item post
+
+ post => 'stop_monitoring',		# assume caller's namespace
+
+or:
+
+ post => 'Package::stop_monitoring',
+
+or:
+
+ post => \&SomeOther::stop_monitoring,
+
+or:
+
+ post => sub {print "anonymous sub when stopping the monitoring\n"},
+
+The "post" field specifies the subroutine to be executed once when the
+monitoring of the queue is stopped.  It must be specified as either the
+name of a subroutine or as a reference to a (anonymous) subroutine.
+
+The specified subroutine should expect the following parameters to be passed:
+
+ 1..N  any parameters that were passed with the call to L<new>.
+
+Any values returned by the "post" routine, can be obtained with the C<join>
+method on the thread object.
+
 =item queue
 
  queue => $queue,  # create new one if not specified
@@ -319,10 +359,11 @@ This value should be L<enqueue>d to have the monitoring thread stop.
 
 =head2 self
 
- $queue = Thread::Queue::Monitored->self; # only within "pre" and "do"
+ $queue = Thread::Queue::Monitored->self; # only "pre", "do" and "post"
 
 The class method "self" returns the object for which this thread is
-monitoring.  It is available within the "pre" and "do" subroutine only.
+monitoring.  It is available within the "pre", "do" and "post" subroutine
+only.
 
 =head1 OBJECT METHODS
 
