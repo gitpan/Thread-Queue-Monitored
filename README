@@ -1,0 +1,25 @@
+README for Thread::Queue::Monitored
+
+Sub-class of Thread::Queue that creates a special queue and a monitoring
+thread that monitors the values that are sent to the queue.  Can be used
+for simple logging or warning for specific events or whatever you want
+to monitor that is able to send information to the monitored queue.
+
+                         *** A note of CAUTION ***
+
+This module only functions on Perl versions 5.8.0-RC3 and later.  And then
+only when threads are enabled with -Dusethreads.  It is of no use with any
+version of Perl before 5.8.0-RC3 or without threads enabled.
+
+                         *************************
+
+Copyright (c) 2002 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
+reserved.  This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+The build is standard:
+
+perl Makefile.PL
+make
+make test
+make install
