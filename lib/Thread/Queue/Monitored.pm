@@ -5,7 +5,7 @@ package Thread::Queue::Monitored;
 # Make sure we do everything by the book from now on
 
 @ISA = qw(Thread::Queue);
-$VERSION = '0.07';
+$VERSION = '0.08';
 use strict;
 
 # Satisfy -require-
@@ -410,6 +410,10 @@ only.
 The C<enqueue> method adds all specified parameters on to the end of the
 queue.  The queue will grow as needed to accommodate the list.  If the
 "exit" value is passed, then the monitoring thread will shut itself down.
+
+=head1 REQUIRED MODULES
+
+ Thread::Queue (any)
 
 =head1 CAVEATS
 
