@@ -1,3 +1,14 @@
+0.03	17 July 2002
+	My my, third version on the same day!
+
+	Added class method "self" for use within the "pre" or "monitor"
+	routine the Thread::Queue::Monitored object they're working for.
+
+	Changed the input parameters of "new" to be more like those of
+	Thread::Pool->new.  This is incompatible with the way it was
+	before.  Fortunately there won't be that many people hurt by
+	it.  Adapted the test-suite accordingly.
+
 0.02	17 July 2002
 	Added support for Thread::Queue::Any::Monitored by making the
 	monitoring routine dependent on the class for which it is being

@@ -5,4 +5,5 @@ TODO
 VERSION
 Makefile.PL
 lib/Thread/Queue/Monitored.pm
-t/Queue-Monitored.t
+t/Queue-Monitored01.t
+t/Queue-Monitored02.t

@@ -5,12 +5,16 @@ package Thread::Queue::Monitored;
 # Make sure we do everything by the book from now on
 
 @ISA = qw(Thread::Queue);
-$VERSION = '0.02';
+$VERSION = '0.03';
 use strict;
 
 # Make sure we have queues
 
 use Thread::Queue (); # no need to pollute namespace
+
+# Allow for self referencing within monitoring thread
+
+my $SELF;
 
 # Satisfy -require-
 
@@ -25,31 +29,51 @@ use Thread::Queue (); # no need to pollute namespace
 
 sub new {
 
-# Obtain the parameters
+# Obtain the class
+# Obtain the parameter hash reference
+# Obtain local copy of code to execute
+# Die now if nothing specified
+# If we don't have a code reference yet, make it one
 
-    my ($class,$code,$exit) = @_;
-    die "Must specify a subroutine to monitor the queue" unless $code;
+    my $class = shift;
+    my $param = shift;
+    my $monitor = $param->{'monitor'};
+    die "Must specify a subroutine to monitor the queue" unless $monitor;
+    $monitor = _makecoderef( caller().'::',$monitor ) unless ref($monitor);
 
-# We we don't have a code reference yet
-#  Make the name fully qualified
-#  Make sure it's a code ref
+# Obtain local copy of the pre subroutine reference
+# If we have one but it isn't a code reference yet, make it one
 
-    unless (ref($code)) {
-        $code = caller().'::'.$code unless $code =~ m#::#;
-        $code = \&{$code};
-    }
+    my $pre = $param->{'pre'};
+    $pre = _makecoderef( caller().'::',$pre ) if $pre and !ref($pre);
 
-# Obtain a standard queue object
+# Obtain a standard queue object, either reblessed from the hash or new
+
+    my $self = $param->{'queue'} ?
+     bless $param->{'queue'},$class : $class->SUPER::new;
+
 # Allow for the automatic monitor routine selection
 # Create a thread monitoring the queue
 # Return the queue objects or both objects
 
-    my $self = $class->SUPER::new;
     no strict 'refs';
-    my $thread =
-     threads->new( \&{$class.'::_monitor'},$self,wantarray,$code,$exit );
+    my $thread = threads->new(
+     \&{$class.'::_monitor'},
+     $self,
+     wantarray,
+     $monitor,
+     $param->{'exit'},	# don't care if not available: then undef = exit value
+     $pre,
+     @_
+    );
     return wantarray ? ($self,$thread) : $self;
 } #new
+
+#---------------------------------------------------------------------------
+#  IN: 1 class (ignored)
+# OUT: 1 instantiated queue object
+
+sub self { $SELF } #self
 
 #---------------------------------------------------------------------------
 #  IN: 1 instantiated object (ignored)
@@ -68,18 +92,46 @@ sub dequeue_nb { die "You cannot dequeue_nb on a monitored queue" }
 # Internal subroutines
 
 #---------------------------------------------------------------------------
+#  IN: 1 namespace prefix
+#      2 subroutine name
+# OUT: 1 code reference
+
+sub _makecoderef {
+
+# Obtain namespace and subroutine name
+# Prefix namespace if not fully qualified
+# Return the code reference
+
+    my ($namespace,$code) = @_;
+    $code = $namespace.$code unless $code =~ m#::#;
+    \&{$code};
+} #_makecoderef
+
+#---------------------------------------------------------------------------
 #  IN: 1 queue object to monitor
 #      2 flag: to keep thread attached
 #      3 code reference of monitoring routine
 #      4 exit value
+#      5 code reference of preparing routine (if available)
+#      6..N parameters passed to creation routine
 
 sub _monitor {
 
-# Obtain the queue and the code reference to work with
+# Obtain the queue object
 # Make sure this thread disappears outside if we don't want to keep it
+# Obtain the monitor code reference
+# Obtain the exit value
 
-    my ($queue,$keep,$code,$exit) = @_;
-    threads->self->detach unless $keep;
+    my $queue = $SELF = shift;
+    threads->self->detach unless shift;
+    my $monitor = shift;
+    my $exit = shift;
+
+# Obtain the preparation subroutine reference
+# Execute the preparation routine if there is one
+
+    my $pre = shift;
+    $pre->( @_ ) if $pre;
 
 # Initialize the list with values to process
 # While we're processing
@@ -103,7 +155,7 @@ sub _monitor {
 	
         foreach (@value) {
 	    return if $_ eq $exit;
-            $code->( $_ );
+            $monitor->( $_ );
         }
     }
 } #_monitor
@@ -119,16 +171,21 @@ Thread::Queue::Monitored - monitor a queue for specific content
 =head1 SYNOPSIS
 
     use Thread::Queue::Monitored;
-    my $q = Thread::Queue::Monitored->new( \&monitor );
-    my ($q,$t) = Thread::Queue::Monitored->new( \&monitor,'exit' );
+    my ($q,$t) = Thread::Queue::Monitored->new(
+     {
+      monitor => sub { print "monitoring value $_[0]\n" }, # is a must
+      pre => sub { print "prepare monitoring\n" },         # optional
+      queue => $queue, # use existing queue, create new if not specified
+      exit => 'exit',  # default to undef
+     }
+    );
+
     $q->enqueue( "foo" );
     $q->enqueue( undef ); # exit value by default
 
-    $t->join; # wait for monitor thread to end
+    $t->join; # optional, wait for monitor thread to end
 
-    sub monitor {
-      warn $_[0] if $_[0] =~ m/something wrong/;
-    }
+    $queue = Thread::Queue::Monitored->self; # in "pre" and "do" only
 
 =head1 DESCRIPTION
 
@@ -160,26 +217,112 @@ Any number of threads can safely add elements to the end of the list.
 
 =head2 new
 
- $queue = Thread::Queue::Monitored->new( \&monitor );
- $queue = Thread::Queue::Monitored->new( \&monitor,'exit' );
- ($queue,$thread) = Thread::Queue::Monitored->new( \&monitor );
- ($queue,$thread) = Thread::Queue::Monitored->new( \&monitor,'exit' );
+ ($queue,$thread) = Thread::Queue::Monitored->new(
+  {
+   pre => \&pre,
+   monitor => 'monitor',
+   queue => $queue, # use existing queue, create new if not specified
+   exit => 'exit',  # default to undef
+  }
+ );
 
-The C<new> function creates a new empty queue.  It returns the instantiated
-Thread::Queue::Monitored object in scalar context: in that case, the monitoring
-thread will be detached and will continue until the exit value is passed on
-to the queue.  In list context, the thread object is also returned, which can
-be used to wait for the thread to be really finished using the C<join()>
-method.
 
-The first input parameter is a name or reference to a subroutine that will
-be called to check on each value that is added to the queue.  It B<must> be
-specified.  The subroutine is to expect one parameter: the value to check.
-It is free to do with that value what it wants.
+The C<new> function creates a monitoring function on an existing or on an new
+(empty) queue.  It returns the instantiated Thread::Queue::Monitored object
+in scalar context: in that case, the monitoring thread will be detached and
+will continue until the exit value is passed on to the queue.  In list
+context, the thread object is also returned, which can be used to wait for
+the thread to be really finished using the C<join()> method.
 
-The second (optional) input parameter is the value that will signal that the
-monitoring of the thread should seize.  If it is not specified, the C<undef>
-value is assumed.  To end monitoring the thread, L<enqueue> the same value.
+The first input parameter is a reference to a hash that should at least
+contain the "monitor" key with a subroutine reference.
+
+The other input parameters are optional.  If specified, they are passed to the
+the "pre" routine which is executed once when the monitoring is started.
+
+The following field B<must> be specified in the hash reference:
+
+=over 2
+
+=item do
+
+ monitor => 'monitor_the_queue',	# assume caller's namespace
+
+or:
+
+ monitor => 'Package::monitor_the_queue',
+
+or:
+
+ monitor => \&SomeOther::monitor_the_queue,
+
+or:
+
+ monitor => sub {print "anonymous sub monitoring the queue\n"},
+
+The "monitor" field specifies the subroutine to be executed for each value
+that is removed from the queue.  It must be specified as either the name of
+a subroutine or as a reference to a (anonymous) subroutine.
+
+The specified subroutine should expect the following parameter to be passed:
+
+ 1  value obtain from the queue
+
+What the subroutine does with the value, is entirely up to the developer.
+
+=back
+
+The following fields are B<optional> in the hash reference:
+
+=over 2
+
+=item pre
+
+ pre => 'prepare_monitoring',		# assume caller's namespace
+
+or:
+
+ pre => 'Package::prepare_monitoring',
+
+or:
+
+ pre => \&SomeOther::prepare_monitoring,
+
+or:
+
+ pre => sub {print "anonymous sub preparing the monitoring\n"},
+
+The "pre" field specifies the subroutine to be executed once when the
+monitoring of the queue is started.  It must be specified as either the
+name of a subroutine or as a reference to a (anonymous) subroutine.
+
+The specified subroutine should expect the following parameters to be passed:
+
+ 1..N  any parameters that were passed with the call to L<new>.
+
+=item queue
+
+ queue => $queue,  # create new one if not specified
+
+The "queue" field specifies the Thread::Queue object that should be monitored.
+A new L<Thread::Queue> object will be created if it is not specified.
+
+=item exit
+
+ exit => 'exit',   # default to undef
+
+The "exit" field specifies the value that will cause the monitoring thread
+to seize monitoring.  The "undef" value will be assumed if it is not specified.
+This value should be L<enqueue>d to have the monitoring thread stop.
+
+=back
+
+=head2 self
+
+ $queue = Thread::Queue::Monitored->self; # only within "pre" and "do"
+
+The class method "self" returns the object for which this thread is
+monitoring.  It is available within the "pre" and "do" subroutine only.
 
 =head1 OBJECT METHODS
 
