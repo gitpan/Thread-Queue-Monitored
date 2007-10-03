@@ -47,4 +47,4 @@ open( my $in,"<$file" ) or die "Could not open file $!";
 is( join('',<$in>), $check,		'check whether monitoring ok' );
 close( $in );
 
-unlink( $file );
+1 while unlink $file; # multiversioned filesystems

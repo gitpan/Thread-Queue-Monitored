@@ -5,7 +5,7 @@ package Thread::Queue::Monitored;
 # Make sure we do everything by the book from now on
 
 @ISA = qw(Thread::Queue);
-$VERSION = '0.08';
+$VERSION = '0.09';
 use strict;
 
 # Satisfy -require-
@@ -234,6 +234,10 @@ Thread::Queue::Monitored - monitor a queue for specific content
 
     $queue = Thread::Queue::Monitored->self; # "pre", "do", "post" only
 
+=head1 VERSION
+
+This documentation describes version 0.09.
+
 =head1 DESCRIPTION
 
                     *** A note of CAUTION ***
@@ -429,7 +433,7 @@ Please report bugs to <perlbugs@dijkmat.nl>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2002-2003 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
+Copyright (c) 2002,2003,2007 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
 reserved.  This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
