@@ -1,30 +1,26 @@
 package Thread::Queue::Monitored;
 
-# Make sure we inherit from Thread::Queue
-# Make sure we have version info for this module
-# Make sure we do everything by the book from now on
+# initializations
+@ISA= qw(Thread::Queue);
+$VERSION= '0.10';
 
-@ISA = qw(Thread::Queue);
-$VERSION = '0.09';
+# be as strict as possible
 use strict;
 
-# Satisfy -require-
-
-1;
-
-# Make sure we have queues
-
+# modules that we need
 use Thread::Queue (); # no need to pollute namespace
 
-# Allow for self referencing within monitoring thread
-
+# self referencing within monitoring thread
 my $SELF;
 
-# Satisfy -require-
-
+# satisfy -require-
 1;
 
-#---------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# new
+#
+# Create a monitored queue
+#
 #  IN: 1 class to bless with
 #      2 reference/name of subroutine doing the monitoring
 #      3 value to consider end of monitoring action (default: undef)
@@ -32,119 +28,133 @@ my $SELF;
 #      2 (optional) thread object of monitoring thread
 
 sub new {
+    my $class= shift;
+    my $param= shift;
 
-# Obtain the class
-# Obtain the parameter hash reference
-# Obtain local copy of code to execute
-# Die now if nothing specified
+    # sanity check
+    my $monitor= $param->{monitor};
+    die "Must specify a subroutine to monitor the queue" if !$monitor;
 
-    my $class = shift;
-    my $param = shift;
-    my $monitor = $param->{'monitor'};
-    die "Must specify a subroutine to monitor the queue" unless $monitor;
+    # make sure it is a code ref
+    my $namespace= caller() . '::';
+    $monitor= _makecoderef( $namespace, $monitor ) if !ref($monitor);
 
-# Create the namespace
-# If we don't have a code reference yet, make it one
+    # get pre and post code
+    my $pre= $param->{pre};
+    $pre= _makecoderef( $namespace, $pre )   if $pre and !ref($pre);
+    my $post= $param->{post};
+    $post= _makecoderef( $namespace, $post ) if $post and !ref($post);
 
-    my $namespace = caller().'::';
-    $monitor = _makecoderef( $namespace,$monitor ) unless ref($monitor);
+    # obtain the queue object
+    my $self= $param->{queue}
+      ? bless $param->{queue}, $class
+      : $class->SUPER::new;
 
-# Obtain local copy of the pre subroutine reference
-# If we have one but it isn't a code reference yet, make it one
-# Obtain local copy of the post subroutine reference
-# If we have one but it isn't a code reference yet, make it one
-
-    my $pre = $param->{'pre'};
-    $pre = _makecoderef( $namespace,$pre ) if $pre and !ref($pre);
-    my $post = $param->{'post'};
-    $post = _makecoderef( $namespace,$post ) if $post and !ref($post);
-
-# Obtain a standard queue object, either reblessed from the hash or new
-
-    my $self = $param->{'queue'} ?
-     bless $param->{'queue'},$class : $class->SUPER::new;
-
-# Allow for the automatic monitor routine selection
-# Create a thread monitoring the queue
-# Return the queue objects or both objects
-
+    # create the thread
     no strict 'refs';
-    my $thread = threads->new(
-     \&{$class.'::_monitor'},
+    my $thread= threads->new(
+     \&{ $class . '::_monitor' },
      $self,
      wantarray,
      $monitor,
-     $param->{'exit'},	# don't care if not available: then undef = exit value
+     $param->{exit},	# don't care if not available: then undef = exit value
      $post,
      $pre,
-     @_
+     @_,
     );
+
     return wantarray ? ($self,$thread) : $self;
 } #new
 
-#---------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# self
+#
+# return singleton
+#
 #  IN: 1 class (ignored)
 # OUT: 1 instantiated queue object
 
 sub self { $SELF } #self
 
-#---------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# dequeue
+#
+# not allowed to do this
+#
 #  IN: 1 instantiated object (ignored)
 # OUT: 1 dequeued value (not returned)
 
-sub dequeue { _die() }
+sub dequeue { _die() } #dequeue
 
-#---------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# dequeue_dontwait
+#
+# not allowed to do this
+#
 #  IN: 1 instantiated object (ignored)
 # OUT: 1 dequeued value (not returned)
 
-sub dequeue_dontwait { _die() }
+sub dequeue_dontwait { _die() } #dequeue_dontwait
 
-#---------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# dequeue_nb
+#
+# not allowed to do this
+#
 #  IN: 1 instantiated object (ignored)
 # OUT: 1 dequeued value (not returned)
 
-sub dequeue_nb { _die() }
+sub dequeue_nb { _die() } #dequeue_nb
 
-#---------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# dequeue_keep
+#
+# not allowed to do this
+#
 #  IN: 1 instantiated object (ignored)
 # OUT: 1 dequeued value (not returned)
 
-sub dequeue_keep { _die() }
+sub dequeue_keep { _die() } # dequeue_keep
 
-#---------------------------------------------------------------------------
-
+#-------------------------------------------------------------------------------
+#
 # Internal subroutines
-
-#---------------------------------------------------------------------------
+#
+#-------------------------------------------------------------------------------
+# _die
+#
+# die as if in caller
+#
 #  IN: 1 instantiated object (ignored)
 
 sub _die {
-
-# Obtain the name of the caller
-# Die with the name of the caller
-
-    (my $caller = (caller(1))[3]) =~ s#^.*::##;
+    ( my $caller= ( caller(1) )[3] ) =~ s#^.*::##;
     die "You cannot '$caller' on a monitored queue";
 } #_die
 
-#---------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# _makecoderef
+#
+# Return coderef for given namespace / sub
+#
 #  IN: 1 namespace prefix
 #      2 subroutine name
 # OUT: 1 code reference
 
 sub _makecoderef {
+    my ( $namespace, $code )= @_;
 
-# Obtain namespace and subroutine name
-# Prefix namespace if not fully qualified
-# Return the code reference
+    # ensure fully qualified
+    $code= $namespace.$code if $code !~ m#::#;
 
-    my ($namespace,$code) = @_;
-    $code = $namespace.$code unless $code =~ m#::#;
-    \&{$code};
+    return \&{$code};
 } #_makecoderef
 
-#---------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# _monitor
+#
+# monitor a queue
+#
 #  IN: 1 queue object to monitor
 #      2 flag: to keep thread attached
 #      3 code reference of monitoring routine
@@ -153,60 +163,48 @@ sub _makecoderef {
 #      6..N parameters passed to creation routine
 
 sub _monitor {
+    my $queue= $SELF= shift;
+    threads->self->detach if !shift;
+    my $monitor= shift;
+    my $exit=    shift;
 
-# Obtain the queue object
-# Make sure this thread disappears outside if we don't want to keep it
-# Obtain the monitor code reference
-# Obtain the exit value
-
-    my $queue = $SELF = shift;
-    threads->self->detach unless shift;
-    my $monitor = shift;
-    my $exit = shift;
-
-# Obtain the post subroutine reference or create an empty one
-# Obtain the preparation subroutine reference
-# Execute the preparation routine if there is one
-
-    my $post = shift || sub {};
-    my $pre = shift;
+    # get pre/post processing
+    my $post= shift || sub {};
+    my $pre=  shift;
     $pre->( @_ ) if $pre;
 
-# Initialize the list with values to process
-# While we're processing
-#  Wait until we can get a lock on the queue
-#  Wait until something happens on the queu
-#  Obtain all values from the queue
-#  Reset the queue
-
+    # processing
     my @value;
-    while( 1 ) {
+    while (1) {
+
+        # get all values from the queue
         {
-         lock( @{$queue} );
-         threads::shared::cond_wait @{$queue} until @{$queue};
-         @value = @{$queue};
-         @{$queue} = ();
+            lock( @{$queue} );
+            threads::shared::cond_wait @{$queue} until @{$queue};
+            @value= @{$queue};
+            @{$queue} = ();
         }
 
-#  For all of the values just obtained
-#   If there is a defined exit value
-#    Return now with result of post() if so indicated
-#   Elsif found value is not defined (so same as exit value)
-#    Return now with result of post()
-#   Call the monitoring routine
-	
+        # process all values
         foreach (@value) {
-            if (defined( $exit )) {
-                return $post->( @_ ) if $_ eq $exit;
-            } elsif(!defined( $_ )) {
-                return $post->( @_ );
+
+            # done, was we've seen the exit value
+            if ( defined($exit) ) {
+                return $post->(@_) if $_ eq $exit;
             }
-            $monitor->( $_ );
+
+            # no value, so we're done
+            elsif( !defined($_) ) {
+                return $post->(@_);
+            }
+
+            # perform the monitoring for this value
+            $monitor->($_);
         }
     }
 } #_monitor
 
-#---------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 
 __END__
 
@@ -217,26 +215,25 @@ Thread::Queue::Monitored - monitor a queue for specific content
 =head1 SYNOPSIS
 
     use Thread::Queue::Monitored;
-    my ($q,$t) = Thread::Queue::Monitored->new(
-     {
+    my ($q,$t) = Thread::Queue::Monitored->new( {
       monitor => sub { print "monitoring value $_[0]\n" }, # is a must
-      pre => sub { print "prepare monitoring\n" },         # optional
-      post => sub { print "stop monitoring\n" },           # optional
-      queue => $queue, # use existing queue, create new if not specified
-      exit => 'exit',  # default to undef
+      pre     => sub { print "prepare monitoring\n" },     # optional
+      post    => sub { print "stop monitoring\n" },        # optional
+      queue   => $queue, # use existing queue, create new if not specified
+      exit    => 'exit', # default to undef
      }
     );
 
-    $q->enqueue( "foo" );
-    $q->enqueue( undef ); # exit value by default
+    $q->enqueue("foo");
+    $q->enqueue(undef); # exit value by default
 
-    @post = $t->join; # optional, wait for monitor thread to end
+    @post= $t->join; # optional, wait for monitor thread to end
 
-    $queue = Thread::Queue::Monitored->self; # "pre", "do", "post" only
+    $queue= Thread::Queue::Monitored->self; # "pre", "do", "post" only
 
 =head1 VERSION
 
-This documentation describes version 0.09.
+This documentation describes version 0.10.
 
 =head1 DESCRIPTION
 
@@ -268,15 +265,13 @@ Any number of threads can safely add elements to the end of the list.
 
 =head2 new
 
- ($queue,$thread) = Thread::Queue::Monitored->new(
-  {
-   pre => \&pre,
+ ( $queue, $thread )= Thread::Queue::Monitored->new( {
+   pre     => \&pre,
    monitor => 'monitor',
-   post => 'module::done',
-   queue => $queue, # use existing queue, create new if not specified
-   exit => 'exit',  # default to undef
-  }
- );
+   post    => 'module::done',
+   queue   => $queue, # use existing queue, create new if not specified
+   exit    => 'exit', # default to undef
+ } );
 
 
 The C<new> function creates a monitoring function on an existing or on an new
@@ -310,7 +305,7 @@ or:
 
 or:
 
- monitor => sub {print "anonymous sub monitoring the queue\n"},
+ monitor => sub { print "anonymous sub monitoring the queue\n" },
 
 The "monitor" field specifies the subroutine to be executed for each value
 that is removed from the queue.  It must be specified as either the name of
@@ -408,7 +403,7 @@ only.
 
 =head2 enqueue
 
- $queue->enqueue( $value1,$value2 );
+ $queue->enqueue( $value1, $value2 );
  $queue->enqueue( 'exit' ); # stop monitoring
 
 The C<enqueue> method adds all specified parameters on to the end of the
@@ -433,9 +428,9 @@ Please report bugs to <perlbugs@dijkmat.nl>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2002,2003,2007 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
-reserved.  This program is free software; you can redistribute it and/or
-modify it under the same terms as Perl itself.
+Copyright (c) 2002, 2003, 2007, 2012 Elizabeth Mattijsen <liz@dijkmat.nl>.
+All rights reserved.  This program is free software; you can redistribute it
+and/or modify it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
