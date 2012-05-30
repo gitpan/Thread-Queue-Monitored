@@ -1,11 +1,14 @@
 MANIFEST
+MANIFEST_maint
 CHANGELOG
 README
 TODO
-VERSION
 Makefile.PL
 lib/Thread/Queue/Monitored.pm
-t/Queue-Monitored01.t
-t/Queue-Monitored02.t
+lib_maint/Thread/Queue/Monitored.pm_maint
+t/001basic.t
+t/010file.t
+t_maint/Queue-Monitored01.t_maint
+t_maint/Queue-Monitored02.t_maint
 META.yml                                Module meta-data (added by MakeMaker)
 META.json                                Module JSON meta-data (added by MakeMaker)

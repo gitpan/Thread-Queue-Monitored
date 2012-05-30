@@ -18,9 +18,10 @@ reserved.  This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
 Version:
- 0.10
+ 1.00
 
 Required Modules:
+ Test::More (0.88)
  Thread::Queue (any)
 
 The build is standard:
