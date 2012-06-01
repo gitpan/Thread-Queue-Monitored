@@ -1,11 +1,13 @@
-package Thread::Queue::Monitored;
+use 5.014;
+#package Thread::Queue::Monitored 1.00; # not supported by PAUSE or MetaCPAN :-(
+package Thread::Queue::Monitored;       # please remove if no longer needed
 
 # initializations
-@ISA= qw(Thread::Queue);
-$VERSION= '0.11';
+our @ISA= qw( Thread::Queue );
+our $VERSION= '1.01';                   # please remove if no longer needed
 
-# be as strict as possible
-use strict;
+# be as verbose as possible
+use warnings;
 
 # modules that we need
 use Thread::Queue (); # no need to pollute namespace
@@ -182,21 +184,14 @@ sub _monitor {
             lock( @{$queue} );
             threads::shared::cond_wait @{$queue} until @{$queue};
             @value= @{$queue};
-            @{$queue} = ();
+            @{$queue}= ();
         }
 
         # process all values
         foreach (@value) {
 
-            # done, was we've seen the exit value
-            if ( defined($exit) ) {
-                return $post->(@_) if $_ eq $exit;
-            }
-
-            # no value, so we're done
-            elsif( !defined($_) ) {
-                return $post->(@_);
-            }
+            # done, we've seen the exit value
+            return $post->(@_) when $exit;
 
             # perform the monitoring for this value
             $monitor->($_);
@@ -215,7 +210,7 @@ Thread::Queue::Monitored - monitor a queue for specific content
 =head1 SYNOPSIS
 
     use Thread::Queue::Monitored;
-    my ($q,$t) = Thread::Queue::Monitored->new( {
+    my ( $q, $t)= Thread::Queue::Monitored->new( {
       monitor => sub { print "monitoring value $_[0]\n" }, # is a must
       pre     => sub { print "prepare monitoring\n" },     # optional
       post    => sub { print "stop monitoring\n" },        # optional
@@ -233,19 +228,14 @@ Thread::Queue::Monitored - monitor a queue for specific content
 
 =head1 VERSION
 
-This documentation describes version 0.11.
+This documentation describes version 1.01.
 
 =head1 DESCRIPTION
 
                     *** A note of CAUTION ***
 
- This module only functions on threaded perl or an unthreaded perl
- with the "forks" module installed.
-
- Please also note that this documentation describes the "maint" version
- of this code.  This version is essentially frozen.  Please use a 5.14
- version of perl for the "blead" version of this code.
-
+ This module only functions if threading has been enabled when building
+ Perl, or if the "forks" module has been installed on an unthreaded Perl.
 
                     *************************
 
@@ -275,7 +265,6 @@ Any number of threads can safely add elements to the end of the list.
    queue   => $queue, # use existing queue, create new if not specified
    exit    => 'exit', # default to undef
  } );
-
 
 The C<new> function creates a monitoring function on an existing or on an new
 (empty) queue.  It returns the instantiated Thread::Queue::Monitored object
@@ -415,12 +404,40 @@ queue.  The queue will grow as needed to accommodate the list.  If the
 
 =head1 REQUIRED MODULES
 
+ Test::More (0.88)
  Thread::Queue (any)
+
+=head1 INSTALLATION
+
+This distribution contains two versions of the code: one maintenance version
+for versions of perl < 5.014 (known as 'maint'), and the version currently in
+development (known as 'blead').  The standard build for your perl version is:
+
+ perl Makefile.PL
+ make
+ make test
+ make install
+
+This will try to test and install the "blead" version of the code.  If the
+Perl version does not support the "blead" version, then the running of the
+Makefile.PL will *fail*.  In such a case, one can force the installing of
+the "maint" version of the code by doing:
+
+ perl Makefile.PL maint
+
+Alternately, if you want automatic selection behavior, you can set the
+AUTO_SELECT_MAINT_OR_BLEAD environment variable to a true value.  On Unix-like
+systems like so:
+
+ AUTO_SELECT_MAINT_OR_BLEAD=1 perl Makefile.PL
+
+If your perl does not support the "blead" version of the code, then it will
+automatically install the "maint" version of the code.
 
 =head1 CAVEATS
 
 You cannot remove any values from the queue, as that is done by the monitoring
-thread.  Therefore, the methods "dequeue", "dequeue_dontwait" and
+thread.  Therefore, the methods "dequeue", "dequeue_dontwait", "dequeue_nb" and
 "dequeue_keep" are disabled on this object.
 
 =head1 AUTHOR
