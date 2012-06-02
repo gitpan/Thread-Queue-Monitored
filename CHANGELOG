@@ -1,3 +1,9 @@
+1.02    2 June 2012
+        Updated "maintblead" to Devel::MaintBlead 0.02.  This should fix the
+        problem that if an inappropriate Perl version was seen, the Makefile.PL
+        would not exit.  Also updated "threadsforks" to Devel::ThreadsForks
+        0.02.
+
 1.01    1 June 2012
         No functional differences, except that the threads/forks check is
         now done by Devel::ThreadsForks, and the maint/blead code path logic
