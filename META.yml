@@ -18,5 +18,6 @@ no_index:
     - t
     - inc
 requires:
+  Test::More: 0.88
   Thread::Queue: 0
-version: 0.13
+version: 1.03
