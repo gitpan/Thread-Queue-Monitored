@@ -32,10 +32,11 @@
       },
       "runtime" : {
          "requires" : {
+            "Test::More" : "0.88",
             "Thread::Queue" : "0"
          }
       }
    },
    "release_status" : "stable",
-   "version" : "0.14"
+   "version" : "1.04"
 }
